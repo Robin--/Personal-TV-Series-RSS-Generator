@@ -26,7 +26,6 @@ class fetchSeries extends epguides
 
 		$data = $this->fetchList();
 		$existing_ids = array();
-		// gather existing data
 		$row = $db->query("select tvrage from tv_series");
 		while (list($tvrage) = $db->fetch_row($row)) {
 			$existing_ids[$tvrage] = 1;

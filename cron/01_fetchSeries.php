@@ -1,27 +1,55 @@
+#!/usr/bin/php
 <?php
 
-include("class.fetcher.php");
+include("class.epguides.php");
 include("../include/common.php");
 include("../include/class.db.php");
 include("../include/class.db_mysql.php");
 
-$fetcher = new fetcher;
 $db = new db_mysql();
 $db->connect($config);
 
-class fetchSeries
+$debug = isset($argv[1]) && $argv[1] == "debug";
+
+class fetchSeries extends epguides
 {
 	function __construct ()
 	{
 		$this->seriesList = "http://epguides.com/common/allshows.txt";
+		$this->getData();
 	}
 
-	function fetchList()
+	function getData()
 	{
-		global $fetcher;
+		global $debug, $db;
+		if ($debug) echo "Fetching series started ... \n";
+
+		$data = $this->fetchList();
+		$existing_ids = array();
+		// gather existing data
+		$row = $db->query("select tvrage from tv_series");
+		while (list($tvrage) = $db->fetch_row($row)) {
+			$existing_ids[$tvrage] = 1;
+		}
+
+		foreach ($data as $serie) {
+			if (!empty($serie['tvrage'])) {
+				if (isset($existing_ids[$serie['tvrage']])) {
+					if ($debug) echo "Updating ".$serie['title']. " with rage id ".$serie['tvrage'] .".\n";
+					$db->update("tv_series", $serie, "tvrage");
+				} else {
+					if ($debug) echo "Inserting ".$serie['title']. " with rage id ".$serie['tvrage'] .".\n";
+					$db->insert("tv_series", $serie);
+				}
+			}
+		}
+	}
+
+	private function fetchList()
+	{
 		$key = "_list";
-		if (!($rows = $fetcher->fetchCache($key))) {
-			$rows = $fetcher->fetchContents($this->seriesList);
+		if (!($rows = $this->fetchCache($key))) {
+			$rows = $this->fetchContents($this->seriesList);
 			$this->setCache($key, $rows);
 		}
 		foreach ($rows as $k=>$row) {
@@ -46,30 +74,4 @@ class fetchSeries
 	}
 }
 
-echo "Fetching series started ... \n";
-$fetchSeries = new fetchSeries();
-$data = $fetchSeries->fetchList();
-
-$inactive_ids = array();
-$inactive = $db->query("select tvrage from tv_series where active=0");
-while (list($tvrage) = $db->fetch_row($inactive)) {
-	$inactive_ids[$tvrage] = 1;
-}
-
-$active_ids = array();
-$active = $db->query("select tvrage from tv_series where active=1");
-while (list($tvrage) = $db->fetch_row($active)) {
-	$active_ids[$tvrage] = 1;
-}
-
-foreach ($data as $serie) {
-	if (!empty($serie['tvrage']) && !isset($inactive_ids[$serie['tvrage']])) {
-		if (isset($active_ids[$serie['tvrage']])) {
-			echo "Updating ".$serie['title']. " with rage id ".$serie['tvrage'] .".\n";
-			$db->update("tv_series", $serie, "tvrage");
-		} else {
-			echo "Inserting ".$serie['title']. " with rage id ".$serie['tvrage'] .".\n";
-			$db->insert("tv_series", $serie);
-		}
-	}
-}
+$series = new fetchSeries();

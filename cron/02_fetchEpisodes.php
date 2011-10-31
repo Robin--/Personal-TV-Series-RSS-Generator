@@ -1,27 +1,29 @@
 <?php
 
-include("class.fetcher.php");
+include("class.epguides.php");
 include("include/common.php");
 include("include/class.db.php");
 include("include/class.db_mysql.php");
 
-$fetcher = new fetcher;
 $db = new db_mysql();
 $db->connect($config);
 
-class fetchEpisodes
+$debug = isset($argv[1]) && $argv[1] == "debug";
+
+class fetchEpisodes extends epguides
 {
 	function __construct ()
 	{
 		$this->episodeLink = "http://epguides.com/common/exportToCSV.asp?rage=%s";
+		$this->getData();
 	}
 
 	function fetchShow($rage_id)
 	{
-		global $fetcher;
+		global $debug, $db;
 		$key = "_show_".$rage_id;
-		if (!($rows = $fetcher->fetchCache($key))) {
-			$rows = $fetcher->fetchContents(sprintf($this->episodesLink, $rage_id));
+		if (!($rows = $this->fetchCache($key))) {
+			$rows = $this->fetchContents(sprintf($this->episodesLink, $rage_id));
 			$this->setCache($key, $rows);
 		}
 		foreach ($rows as $k=>$row) {
@@ -53,3 +55,5 @@ class fetchEpisodes
 		return date("Y-m-d", strtotime($year."-".$date[1]."-".$date[0]));
 	}
 }
+
+$episodes = new fetchEpisodes();

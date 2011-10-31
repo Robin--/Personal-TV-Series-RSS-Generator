@@ -33,7 +33,6 @@ class epguides
 		if (intval($day_diff) > 7) {
 			return false;
 		}
-		echo "Reading data from cache ... \n";
 		return unserialize(@file_get_contents("/tmp/".$key));
 	}
 

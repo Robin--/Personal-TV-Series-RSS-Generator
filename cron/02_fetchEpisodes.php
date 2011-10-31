@@ -25,7 +25,7 @@ class fetchEpisodes extends epguides
 		if ($debug) echo "Fetching episodes ... \n";
 
 		$series = array();
-		if ($series = $db->get_all("select * from tv_series")) {
+		if ($series = $db->get_all("select * from tv_series where active=1")) {
 			foreach ($series as $row) {
 				$db->query("delete from tv_episodes where tvrage=?", $row['tvrage']);
 				$episodes = $this->fetchShow($row['tvrage']);
@@ -58,17 +58,20 @@ class fetchEpisodes extends epguides
 	private function prepareShow($row)
 	{
 		$airdate = strtotime($row['airdate']);
-		if (is_numeric($airdate)) {
+		if (!is_numeric($airdate)) {
 			$row['airdate'] = $this->parseDate($row['airdate']);
 		} else {
-			$row['airdate'] = "0000-00-00";
+			$row['airdate'] = date("Y-m-d", $airdate);
 		}
 		return $row;
 	}
 
-	private function parseDate( $date ) 
+	private function parseDate($date) 
 	{
 		$date = explode("/", $date);
+		if (count($date)!=3) {
+			return "0000-00-00";
+		}
 		$year = "19".$date[2];
 		$last_two_digits = substr(date("Y"), 2);
 		if ($date[2] <= $last_two_digits ) {

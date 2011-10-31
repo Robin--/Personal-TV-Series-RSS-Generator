@@ -1,9 +1,10 @@
+#!/usr/bin/php
 <?php
 
 include("class.epguides.php");
-include("include/common.php");
-include("include/class.db.php");
-include("include/class.db_mysql.php");
+include("../include/common.php");
+include("../include/class.db.php");
+include("../include/class.db_mysql.php");
 
 $db = new db_mysql();
 $db->connect($config);
@@ -18,13 +19,35 @@ class fetchEpisodes extends epguides
 		$this->getData();
 	}
 
+	function getData()
+	{
+		global $debug, $db;
+		if ($debug) echo "Fetching episodes ... \n";
+
+		$series = array();
+		if ($series = $db->get_all("select * from tv_series")) {
+			foreach ($series as $row) {
+				$db->query("delete from tv_episodes where tvrage=?", $row['tvrage']);
+				$episodes = $this->fetchShow($row['tvrage']);
+				if ($debug) echo "Inserting ".count($episodes). " episodes for ".$row['title']." with rage id ".$row['tvrage'] .".\n";
+				foreach ($episodes as $ep) {
+					$ep['tvrage'] = $row['tvrage'];
+					$db->insert("tv_episodes", $ep);
+				}
+			}
+		}
+	}
+
 	function fetchShow($rage_id)
 	{
 		global $debug, $db;
 		$key = "_show_".$rage_id;
 		if (!($rows = $this->fetchCache($key))) {
-			$rows = $this->fetchContents(sprintf($this->episodesLink, $rage_id));
+			if ($debug) echo "Fetching rage id ".$rage_id." and setting cache ...\n";
+			$rows = $this->fetchContents(sprintf($this->episodeLink, $rage_id));
 			$this->setCache($key, $rows);
+		} else {
+			if ($debug) echo "Rage id ".$rage_id." fetched from cache ...\n";
 		}
 		foreach ($rows as $k=>$row) {
 			$rows[$k] = $this->prepareShow($row);
